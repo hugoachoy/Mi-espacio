@@ -40,3 +40,73 @@ $('#export-btn').onclick=()=>{const blob=new Blob([JSON.stringify(data,null,2)],
 $('#import-file').onchange=e=>{const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=()=>{try{data={...emptyData,...JSON.parse(r.result)};save();toast('Copia restaurada')}catch{alert('El archivo no tiene un formato válido.')}};r.readAsText(file);e.target.value=''};
 if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
 render();
+
+
+/* --- Cuenta y sincronización segura con Supabase --- */
+const SUPABASE_URL='https://hpzhsiqghcaaxfrtrdvn.supabase.co';
+const SUPABASE_ANON_KEY='sb_publishable_4nogSoAlGTJL7v22R2hXPg_gEzVDw_h';
+let cloudClient=null, cloudUser=null, cloudReady=false, cloudApplying=false, syncTimer=null, syncBusy=false;
+function localHasContent(){return Object.values(data).some(v=>Array.isArray(v)&&v.length>0)}
+function setAccountLabel(label){const b=$('#account-btn');if(b)b.title=label}
+function accountDialog(){
+ const logged=!!cloudUser;
+ $('#modal-root').innerHTML=`<div class="modal-backdrop" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modal-head"><div><div class="eyebrow">MI ESPACIO EN TUS DISPOSITIVOS</div><h2>${logged?'Cuenta y sincronización':'Conectar MI ESPACIO'}</h2></div><button class="close-btn" onclick="closeModal()">×</button></div>
+ ${logged?`<p class="account-copy">Sesión iniciada con <strong>${esc(cloudUser.email||'tu cuenta')}</strong>.</p><p class="account-status" id="account-sync-status">Consultando sincronización…</p><div class="form-actions"><button class="secondary-btn" onclick="closeModal();syncNow(true)">Sincronizar ahora</button><button class="secondary-btn" onclick="signOut()">Cerrar sesión</button><button class="primary-btn" onclick="closeModal()">Listo</button></div>`:`<p class="account-copy">Usá el mismo correo y contraseña en Chrome del celular y de la computadora. Así ambos accederán a tus datos.</p><form class="account-form" onsubmit="authenticate(event)"><div class="form-field"><label>Correo electrónico</label><input class="form-control" type="email" name="email" autocomplete="email" required></div><div class="form-field"><label>Contraseña</label><input class="form-control" type="password" name="password" autocomplete="current-password" minlength="6" required></div><div id="auth-error" class="auth-error"></div><div class="form-actions"><button type="button" class="secondary-btn" onclick="closeModal()">Cancelar</button><button type="button" class="secondary-btn" onclick="authenticate(event,'signup')">Crear cuenta</button><button class="primary-btn" type="submit">Ingresar</button></div></form>`}</div></div>`;
+}
+async function authenticate(e,mode='signin'){
+ if(e)e.preventDefault();
+ const form=$('#modal-root form');if(!form)return;
+ const fd=new FormData(form),email=String(fd.get('email')||'').trim(),password=String(fd.get('password')||'');
+ const err=$('#auth-error');if(err)err.textContent='';
+ const btn=form.querySelector('button[type="submit"]');if(btn)btn.disabled=true;
+ const result=mode==='signup'?await cloudClient.auth.signUp({email,password}):await cloudClient.auth.signInWithPassword({email,password});
+ if(btn)btn.disabled=false;
+ if(result.error){if(err)err.textContent=result.error.message;return}
+ if(mode==='signup'&&!result.data.session){if(err)err.textContent='Cuenta creada. Revisá tu correo para confirmar el registro y después ingresá.';return}
+ closeModal();toast(mode==='signup'?'Cuenta creada':'Sesión iniciada');
+}
+async function signOut(){await cloudClient.auth.signOut();cloudUser=null;cloudReady=false;setAccountLabel('Ingresar / crear cuenta');closeModal();toast('Sesión cerrada')}
+function setSyncMessage(msg){const el=$('#account-sync-status');if(el)el.textContent=msg}
+async function syncNow(showToast=false){
+ if(!cloudClient||!cloudUser||syncBusy)return;
+ syncBusy=true;
+ try{
+  const {data:row,error}=await cloudClient.from('mi_espacio').select('datos,updated_at').eq('user_id',cloudUser.id).maybeSingle();
+  if(error)throw error;
+  if(!row){
+   const {error:upErr}=await cloudClient.from('mi_espacio').upsert({user_id:cloudUser.id,datos:data,updated_at:new Date().toISOString()});
+   if(upErr)throw upErr;
+  }else{
+   cloudApplying=true;data={...emptyData,...(row.datos||{})};localStorage.setItem(STORE,JSON.stringify(data));render();cloudApplying=false;
+  }
+  cloudReady=true;setSyncMessage('Sincronización activa. Última comprobación: '+new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}));
+  if(showToast)toast('Datos sincronizados');
+ }catch(err){cloudApplying=false;setSyncMessage('No se pudo sincronizar: '+err.message);if(showToast)toast('Error de sincronización')}
+ finally{syncBusy=false}
+}
+async function pushCloud(){
+ if(!cloudReady||!cloudUser||cloudApplying)return;
+ try{const {error}=await cloudClient.from('mi_espacio').upsert({user_id:cloudUser.id,datos:data,updated_at:new Date().toISOString()});if(error)throw error;setSyncMessage('Sincronizado · '+new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}))}
+ catch(err){setSyncMessage('Pendiente de sincronizar: '+err.message)}
+}
+function scheduleCloudSync(){if(!cloudReady||cloudApplying)return;clearTimeout(syncTimer);syncTimer=setTimeout(pushCloud,700)}
+async function startCloudSession(session){
+ const nextUser=session?.user||null;
+ if(!nextUser){cloudUser=null;cloudReady=false;setAccountLabel('Ingresar / crear cuenta');return}
+ cloudUser=nextUser;setAccountLabel('Cuenta: '+(cloudUser.email||'conectada'));
+ await syncNow(false);
+}
+async function initCloud(){
+ if(!window.supabase?.createClient){setAccountLabel('No se pudo cargar el servicio de sincronización');return}
+ cloudClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+ const {data:sessionData}=await cloudClient.auth.getSession();
+ await startCloudSession(sessionData.session);
+ cloudClient.auth.onAuthStateChange((_event,session)=>{setTimeout(()=>startCloudSession(session),0)});
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&cloudUser)syncNow(false)});
+ window.addEventListener('focus',()=>{if(cloudUser)syncNow(false)});
+}
+const originalSave=save;
+save=function(){localStorage.setItem(STORE,JSON.stringify(data));render();scheduleCloudSync()};
+saveQuiet=function(){localStorage.setItem(STORE,JSON.stringify(data));scheduleCloudSync()};
+$('#account-btn')?.addEventListener('click',accountDialog);
+initCloud();
