@@ -45,7 +45,7 @@ render();
 /* --- Cuenta y sincronización segura con Supabase --- */
 const SUPABASE_URL='https://hpzhsiqghcaaxfrtrdvn.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_4nogSoAlGTJL7v22R2hXPg_gEzVDw_h';
-let cloudClient=null, cloudUser=null, cloudReady=false, cloudApplying=false, syncTimer=null, syncBusy=false;
+let cloudClient=null, cloudUser=null, cloudReady=false, cloudApplying=false, syncTimer=null, syncBusy=false, localChangePending=false;
 function localHasContent(){return Object.values(data).some(v=>Array.isArray(v)&&v.length>0)}
 function setAccountLabel(label){const b=$('#account-btn');if(b)b.title=label}
 function accountDialog(){
@@ -69,6 +69,7 @@ async function signOut(){await cloudClient.auth.signOut();cloudUser=null;cloudRe
 function setSyncMessage(msg){const el=$('#account-sync-status');if(el)el.textContent=msg}
 async function syncNow(showToast=false){
  if(!cloudClient||!cloudUser||syncBusy)return;
+ if(cloudReady&&localChangePending){await pushCloud();return}
  syncBusy=true;
  try{
   const {data:row,error}=await cloudClient.from('mi_espacio').select('datos,updated_at').eq('user_id',cloudUser.id).maybeSingle();
@@ -86,10 +87,10 @@ async function syncNow(showToast=false){
 }
 async function pushCloud(){
  if(!cloudReady||!cloudUser||cloudApplying)return;
- try{const {error}=await cloudClient.from('mi_espacio').upsert({user_id:cloudUser.id,datos:data,updated_at:new Date().toISOString()});if(error)throw error;setSyncMessage('Sincronizado · '+new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}))}
+ try{const {error}=await cloudClient.from('mi_espacio').upsert({user_id:cloudUser.id,datos:data,updated_at:new Date().toISOString()});if(error)throw error;localChangePending=false;setSyncMessage('Sincronizado · '+new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}))}
  catch(err){setSyncMessage('Pendiente de sincronizar: '+err.message)}
 }
-function scheduleCloudSync(){if(!cloudReady||cloudApplying)return;clearTimeout(syncTimer);syncTimer=setTimeout(pushCloud,700)}
+function scheduleCloudSync(){if(!cloudReady||cloudApplying)return;localChangePending=true;clearTimeout(syncTimer);syncTimer=setTimeout(pushCloud,700)}
 async function startCloudSession(session){
  const nextUser=session?.user||null;
  if(!nextUser){cloudUser=null;cloudReady=false;setAccountLabel('Ingresar / crear cuenta');return}
@@ -104,6 +105,7 @@ async function initCloud(){
  cloudClient.auth.onAuthStateChange((_event,session)=>{setTimeout(()=>startCloudSession(session),0)});
  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&cloudUser)syncNow(false)});
  window.addEventListener('focus',()=>{if(cloudUser)syncNow(false)});
+ setInterval(()=>{if(cloudUser&&!document.hidden)syncNow(false)},15000);
 }
 const originalSave=save;
 save=function(){localStorage.setItem(STORE,JSON.stringify(data));render();scheduleCloudSync()};
