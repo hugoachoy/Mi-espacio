@@ -23,7 +23,7 @@
       <div class="sidebar-bottom"><div class="privacy-note">◈ <span>Tus datos quedan guardados en este dispositivo.</span></div><button id="export-btn" class="text-button">↓ Exportar copia de seguridad</button><label class="text-button import-label">↑ Restaurar copia<input id="import-file" type="file" accept="application/json" hidden></label></div>
     </aside>
     <main class="main-area">
-      <header class="topbar"><button id="mobile-menu" class="icon-button mobile-only" aria-label="Abrir menú">☰</button><div class="breadcrumb">MI ESPACIO <span>/</span> <b id="page-name">Inicio</b></div><div class="top-actions"><span class="today" id="today-label"></span><button class="avatar" title="Mi espacio">H</button></div></header>
+      <header class="topbar"><button id="mobile-menu" class="icon-button mobile-only" aria-label="Abrir menú">☰</button><div class="breadcrumb">MI ESPACIO <span>/</span> <b id="page-name">Inicio</b></div><div class="top-actions"><span class="today" id="today-label"></span><button class="avatar" id="account-btn" title="Cuenta y sincronización">H</button></div></header>
       <section class="page-wrap">
         <div id="page-content"></div>
       </section>
@@ -35,5 +35,5 @@
   <button class="fab" id="quick-add" aria-label="Agregar">＋</button>
   <div id="modal-root"></div>
   <div id="toast" class="toast" role="status"></div>
-  <script src="app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>\n  <script src="app.js"></script>
 </body></html>
