@@ -16,3 +16,8 @@ body.mobile-menu-open .fab{display:none!important}
 .auth-error{font-size:11px;color:#b34d4d;line-height:1.5}
 .account-status{font-size:12px;line-height:1.6;padding:12px;border-radius:10px;background:#f2f6f4;color:#476b68}
 .avatar{cursor:pointer}
+
+/* Ajuste de ventanas y botones para pantallas bajas */
+.modal{max-height:calc(100dvh - 36px);overflow-y:auto;overscroll-behavior:contain}
+.form-actions{flex-wrap:wrap}
+.form-actions button{max-width:100%}
