@@ -1,30 +1,124 @@
-# Mi Espacio — primera versión de trabajo
+# Mi Espacio
 
-Aplicación web progresiva (PWA) adaptable a celular Android y computadora.
+Aplicación web progresiva (PWA) para organización personal. Está publicada en GitHub Pages y puede utilizarse desde una computadora o un teléfono Android, tanto en el navegador como instalada en la pantalla de inicio.
 
-## Qué incluye esta primera entrega
-- Tablero inicial y navegación por módulos.
-- Recordatorios con fecha, hora y campo de anticipación (todavía no dispara notificaciones).
-- Listas de compras por comercio con artículos, cantidades y marcación de comprado.
-- Registro de medicamentos, stock mínimo y vencimiento.
-- Biblioteca de enlaces/videos, películas/series y códigos útiles.
-- Búsqueda en cada módulo.
-- Exportación e importación de copia de seguridad JSON.
-- Interfaz adaptable y estructura PWA con caché básica.
+**Aplicación:** https://hugoachoy.github.io/Mi-espacio/
 
-## Estado y limitaciones importantes
-Esta es una primera base funcional para validar pantallas y organización. Los datos se guardan en el almacenamiento local del navegador/dispositivo. **Todavía no hay sincronización entre dispositivos, cuentas de usuario, notificaciones reales ni alarmas Android.** El campo de anticipación de los recordatorios es por ahora informativo. No usar esta versión como único medio para recordar medicación, turnos u otros asuntos críticos.
+## Funciones actuales
 
-## Cómo probar en una computadora
-La forma más sencilla es servir la carpeta mediante un servidor web local. Con Python 3 instalado, desde esta carpeta ejecutar:
+### Panel de inicio
+- Resumen de recordatorios pendientes.
+- Cantidad de listas de compras activas.
+- Cantidad de medicamentos registrados.
+- Cantidad de enlaces y videos guardados.
+- Accesos directos a los módulos y a la creación de elementos.
+- Vista de próximos recordatorios y accesos a la biblioteca personal.
 
-```bash
-python3 -m http.server 8080
-```
+### Recordatorios
+- Registro de título, fecha, horario, anticipación del aviso y detalles.
+- Consulta, edición y eliminación.
+- Posibilidad de marcar un recordatorio como **Realizado**.
+- Los recordatorios realizados conservan su tarjeta con un distintivo visual.
+- Notificaciones push programadas, incluso cuando la aplicación no está abierta, en los dispositivos que hayan concedido permiso y activado las notificaciones.
+- Al tocar una notificación, la aplicación abre el detalle del recordatorio correspondiente.
 
-Luego abrir `http://localhost:8080` en el navegador.
+### Listas de compras
+- Creación de listas identificadas por nombre y lugar o comercio.
+- Incorporación de artículos y cantidades.
+- Marcación de artículos comprados y eliminación de artículos.
+- Indicador de progreso de cada lista.
 
-Para instalarla como PWA y probar el service worker se necesita `localhost` o un sitio publicado con HTTPS. Abrir `index.html` directamente también permite probar las funciones básicas, pero no activa el service worker.
+### Medicación
+- Registro del nombre y presentación del medicamento.
+- Seguimiento del stock actual y del stock mínimo.
+- Fecha de vencimiento y próximo pedido.
+- Farmacia o proveedor y notas.
+- Indicador en el panel de inicio para consultar los medicamentos que necesitan reposición.
 
-## Próxima etapa
-Validar el diseño y los formularios. Después implementar almacenamiento robusto, sincronización segura y notificaciones; para alarmas de alta prioridad en Android se evaluará una capa nativa con AlarmManager.
+### Biblioteca personal
+- **Enlaces y videos:** título, tipo, dirección web, categoría y descripción.
+- **Películas y series:** título, tipo, año, plataforma, estado, género y comentario personal.
+- **Códigos útiles:** nombre, código, categoría, enlace opcional y descripción.
+
+### Herramientas generales
+- Búsqueda dentro de los módulos.
+- Formularios para crear y editar elementos.
+- Exportación de una copia de seguridad en formato JSON.
+- Restauración desde una copia JSON.
+- Diseño adaptable a pantallas de computadora y celular.
+- Navegación lateral en escritorio y menú inferior en dispositivos móviles.
+
+## Sincronización entre dispositivos
+
+La aplicación permite iniciar sesión con una cuenta de correo electrónico y contraseña. Al utilizar la misma cuenta en la computadora y en Android, los datos se sincronizan mediante **Supabase**.
+
+- Los datos se mantienen también en el almacenamiento local del navegador.
+- La aplicación consulta cambios al recuperar el foco y periódicamente mientras está abierta.
+- Los cambios realizados se envían a la nube automáticamente.
+- Desde el panel de cuenta se puede solicitar una sincronización manual y consultar el estado.
+
+La sincronización requiere conexión a Internet y una sesión iniciada. La copia de seguridad JSON sigue disponible como respaldo independiente.
+
+## Notificaciones push
+
+Las notificaciones se gestionan mediante el sistema Web Push y una función de Supabase Edge Functions.
+
+- Cada dispositivo debe activar las notificaciones y conceder permiso al navegador.
+- Los dispositivos habilitados registran su suscripción para recibir avisos.
+- Una tarea programada de Supabase ejecuta la revisión de recordatorios.
+- Se contemplan avisos anticipados expresados en minutos, horas, días o semanas.
+- El sistema evita enviar repetidamente la misma notificación para un mismo aviso.
+- Al abrir una notificación, se intenta localizar el recordatorio y mostrar su ficha.
+
+Las notificaciones dependen de los permisos del navegador, la conexión y los servicios del dispositivo. Para asuntos críticos, conviene mantener un medio de respaldo.
+
+## Tecnologías y arquitectura
+
+- HTML, CSS y JavaScript sin framework de interfaz.
+- PWA: manifest.webmanifest y sw.js (service worker).
+- GitHub Pages para publicación.
+- Supabase Auth para autenticación.
+- Supabase Database para sincronización de datos.
+- Supabase Edge Functions y Web Push para envío de notificaciones.
+- Almacenamiento local del navegador como persistencia en el dispositivo.
+
+### Archivos principales
+
+| Archivo | Función |
+|---|---|
+| index.html | Estructura principal de la aplicación y navegación. |
+| app.js | Módulos, formularios, operaciones, autenticación, sincronización y notificaciones. |
+| styles.css | Diseño visual y adaptación a distintos tamaños de pantalla. |
+| sw.js | Caché de la PWA y recepción/apertura de notificaciones push. |
+| manifest.webmanifest | Nombre y configuración de instalación de la PWA. |
+| supabase/functions/send-reminders/index.ts | Función de servidor que revisa y envía recordatorios programados. |
+
+## Datos y seguridad
+
+- La información personal se guarda en el almacenamiento local y, cuando hay una sesión activa, en la base de datos de Supabase.
+- La tabla de datos utiliza políticas de seguridad por usuario (Row Level Security, RLS).
+- Las suscripciones push se asocian al usuario autenticado.
+- La clave pública de Supabase y la clave pública VAPID utilizadas por el cliente no son claves privadas.
+- Las claves privadas, secretos de cron y credenciales de servidor deben permanecer en los secretos de Supabase y nunca deben publicarse en este repositorio.
+- No se deben borrar los datos del navegador ni el almacenamiento local como método de actualización de la aplicación.
+
+## Desarrollo y prueba local
+
+Se necesita Python 3 para levantar un servidor web local. Desde la carpeta del proyecto, ejecutar:
+
+    python3 -m http.server 8080
+
+Abrir luego http://localhost:8080
+
+Para probar las funciones de PWA y el service worker se requiere localhost o un sitio publicado mediante HTTPS. Algunas funciones, como la autenticación, la sincronización y las notificaciones push, requieren además que la configuración de Supabase esté disponible y correctamente configurada.
+
+## Publicación
+
+- Repositorio: https://github.com/hugoachoy/Mi-espacio
+- Sitio publicado: https://hugoachoy.github.io/Mi-espacio/
+
+Al modificar archivos de la aplicación, se debe actualizar la versión de caché definida en la primera línea de sw.js (actualmente mi-espacio-shell-v12) para que los navegadores descarguen los archivos nuevos. No es necesario ni recomendable borrar el almacenamiento local: allí pueden existir datos del usuario.
+
+## Estado del proyecto
+
+Mi Espacio está en uso y probada en computadora y Android. La autenticación, sincronización entre dispositivos, copias de seguridad, notificaciones push y apertura del recordatorio desde la notificación ya fueron implementadas y verificadas. El proyecto continúa evolucionando; este README describe las funciones implementadas actualmente, no una lista de funciones futuras.
