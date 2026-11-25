@@ -46,3 +46,7 @@ body.mobile-menu-open .fab{display:none!important}
   .form-actions{display:grid;grid-template-columns:1fr;gap:8px;margin-top:16px}
   .form-actions button{width:100%;min-height:44px;white-space:normal}
 }
+
+/* Estado visual de recordatorios realizados */
+.reminder-card.is-done{background:#eaf1ef;border-color:#cbdcd7}
+.reminder-status{display:inline-block;margin-top:7px;padding:4px 9px;border-radius:20px;background:#d5e5df;color:#365f55;font-size:9px;font-weight:800;letter-spacing:.7px}
