@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
     const rawPrivate = decodeBase64Url(privateKey);
     const keys = await webpush.importVapidKeys(vapidJwk(rawPrivate, rawPublic));
     const appServer = await webpush.ApplicationServer.new({
-      contactInformation: "mailto:admin@mi-espacio.app",
+      contactInformation: "https://hugoachoy.github.io/Mi-espacio/",
       vapidKeys: keys,
     });
 
@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
     }
 
     const now = Date.now();
-    const windowMs = 2 * 60_000;
+    const windowMs = 5 * 60_000;
     let examined = 0, due = 0, sent = 0, skipped = 0, failed = 0;
     const preview: Array<{ title: string; scheduled_at: string; user_id: string }> = [];
 
