@@ -45,13 +45,14 @@ render();
 /* --- Cuenta y sincronización segura con Supabase --- */
 const SUPABASE_URL='https://hpzhsiqghcaaxfrtrdvn.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_4nogSoAlGTJL7v22R2hXPg_gEzVDw_h';
+const VAPID_PUBLIC_KEY='BO52i93wpkebzUtSrBm-0IV98t8SEvpEcc9M-RdoSEk9YocilU1q0dOXjSFGD9azebI3M8d4sJ2Vc0hcvDS3eD8';
 let cloudClient=null, cloudUser=null, cloudReady=false, cloudApplying=false, syncTimer=null, syncBusy=false, localChangePending=false;
 function localHasContent(){return Object.values(data).some(v=>Array.isArray(v)&&v.length>0)}
 function setAccountLabel(label){const b=$('#account-btn');if(b)b.title=label}
 function accountDialog(){
  const logged=!!cloudUser;
  $('#modal-root').innerHTML=`<div class="modal-backdrop" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modal-head"><div><div class="eyebrow">MI ESPACIO EN TUS DISPOSITIVOS</div><h2>${logged?'Cuenta y sincronización':'Conectar MI ESPACIO'}</h2></div><button class="close-btn" onclick="closeModal()">×</button></div>
- ${logged?`<p class="account-copy">Sesión iniciada con <strong>${esc(cloudUser.email||'tu cuenta')}</strong>.</p><p class="account-status" id="account-sync-status">Consultando sincronización…</p><div class="form-actions"><button class="secondary-btn" onclick="closeModal();syncNow(true)">Sincronizar ahora</button><button class="secondary-btn" onclick="signOut()">Cerrar sesión</button><button class="primary-btn" onclick="closeModal()">Listo</button></div>`:`<p class="account-copy">Usá el mismo correo y contraseña en Chrome del celular y de la computadora. Así ambos accederán a tus datos.</p><form class="account-form" onsubmit="authenticate(event)"><div class="form-field"><label>Correo electrónico</label><input class="form-control" type="email" name="email" autocomplete="email" required></div><div class="form-field"><label>Contraseña</label><input class="form-control" type="password" name="password" autocomplete="current-password" minlength="6" required></div><div id="auth-error" class="auth-error"></div><div class="form-actions"><button type="button" class="secondary-btn" onclick="closeModal()">Cancelar</button><button type="button" class="secondary-btn" onclick="authenticate(event,'signup')">Crear cuenta</button><button class="primary-btn" type="submit">Ingresar</button></div></form>`}</div></div>`;
+ ${logged?`<p class="account-copy">Sesión iniciada con <strong>${esc(cloudUser.email||'tu cuenta')}</strong>.</p><p class="account-status" id="account-sync-status">Consultando sincronización…</p><div class="form-actions"><button class="secondary-btn" onclick="enablePushNotifications()">Activar notificaciones en este dispositivo</button><button class="secondary-btn" onclick="closeModal();syncNow(true)">Sincronizar ahora</button><button class="secondary-btn" onclick="signOut()">Cerrar sesión</button><button class="primary-btn" onclick="closeModal()">Listo</button></div>`:`<p class="account-copy">Usá el mismo correo y contraseña en Chrome del celular y de la computadora. Así ambos accederán a tus datos.</p><form class="account-form" onsubmit="authenticate(event)"><div class="form-field"><label>Correo electrónico</label><input class="form-control" type="email" name="email" autocomplete="email" required></div><div class="form-field"><label>Contraseña</label><input class="form-control" type="password" name="password" autocomplete="current-password" minlength="6" required></div><div id="auth-error" class="auth-error"></div><div class="form-actions"><button type="button" class="secondary-btn" onclick="closeModal()">Cancelar</button><button type="button" class="secondary-btn" onclick="authenticate(event,'signup')">Crear cuenta</button><button class="primary-btn" type="submit">Ingresar</button></div></form>`}</div></div>`;
 }
 async function authenticate(e,mode='signin'){
  if(e)e.preventDefault();
@@ -66,6 +67,27 @@ async function authenticate(e,mode='signin'){
  closeModal();toast(mode==='signup'?'Cuenta creada':'Sesión iniciada');
 }
 async function signOut(){await cloudClient.auth.signOut();cloudUser=null;cloudReady=false;setAccountLabel('Ingresar / crear cuenta');closeModal();toast('Sesión cerrada')}
+function urlBase64ToUint8Array(base64String){
+ const padding='='.repeat((4-base64String.length%4)%4);
+ const raw=atob((base64String+padding).replace(/-/g,'+').replace(/_/g,'/'));
+ return Uint8Array.from([...raw].map(ch=>ch.charCodeAt(0)));
+}
+async function enablePushNotifications(){
+ if(!cloudUser||!cloudClient){toast('Primero iniciá sesión');return}
+ if(!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window)){alert('Este navegador no admite notificaciones push. Probá con Chrome actualizado.');return}
+ try{
+  const permission=await Notification.requestPermission();
+  if(permission!=='granted'){alert('No se concedió permiso para las notificaciones. Podés habilitarlo desde la configuración del navegador.');return}
+  const registration=await navigator.serviceWorker.ready;
+  let subscription=await registration.pushManager.getSubscription();
+  if(!subscription)subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY)});
+  const payload={user_id:cloudUser.id,endpoint:subscription.endpoint,subscription:subscription.toJSON(),updated_at:new Date().toISOString()};
+  const {error}=await cloudClient.from('mi_espacio_push_subscriptions').upsert(payload,{onConflict:'endpoint'});
+  if(error)throw error;
+  toast('Notificaciones habilitadas en este dispositivo');
+  const status=$('#account-sync-status');if(status)status.textContent+=' · Notificaciones activadas en este dispositivo';
+ }catch(err){console.error(err);alert('No se pudieron activar las notificaciones: '+(err.message||err))}
+}
 function setSyncMessage(msg){const el=$('#account-sync-status');if(el)el.textContent=msg}
 async function syncNow(showToast=false){
  if(!cloudClient||!cloudUser||syncBusy)return;
