@@ -162,7 +162,7 @@ Deno.serve(async (req) => {
           const payload = JSON.stringify({
             title: "MI ESPACIO · Recordatorio",
             body: String(reminder.title ?? "Tenés un recordatorio pendiente"),
-            url: "/Mi-espacio/",
+            url: `/Mi-espacio/?reminder=${fingerprint}`,
             tag: `mi-espacio-${fingerprint.slice(0, 20)}-${offset}`,
           });
           let delivered = 0;
