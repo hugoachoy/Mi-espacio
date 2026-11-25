@@ -1,8 +1,10 @@
 const STORE='mi-espacio-v1';
 const emptyData={reminders:[],shopping:[],meds:[],links:[],movies:[],codes:[]};
-let data=loadData(),page='inicio',activeList=null;
-function loadData(){try{return {...emptyData,...JSON.parse(localStorage.getItem(STORE)||'{}')}}catch{return structuredClone(emptyData)}}
-function save(){localStorage.setItem(STORE,JSON.stringify(data));render()}
+let activeStorageKey=STORE+':anonymous';
+let data=loadData(activeStorageKey),page='inicio',activeList=null;
+function loadData(key=activeStorageKey){try{return {...emptyData,...JSON.parse(localStorage.getItem(key)||'{}')}}catch{return structuredClone(emptyData)}}
+function persistLocal(){localStorage.setItem(activeStorageKey,JSON.stringify(data))}
+function save(){persistLocal();render()}
 const $=s=>document.querySelector(s);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const dateFmt=v=>v?new Date(v+'T12:00:00').toLocaleDateString('es-AR'):'';
 const today=new Date();$('#today-label').textContent=today.toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short'});
@@ -62,7 +64,7 @@ function openShopping(i){activeList=i;const x=data.shopping[i];$('#modal-root').
 function addShoppingItem(e){e.preventDefault();const f=new FormData(e.target);data.shopping[activeList].items.push({name:f.get('item'),qty:f.get('qty'),done:false});openShopping(activeList);saveQuiet()}
 function toggleShopping(i,j){data.shopping[i].items[j].done=!data.shopping[i].items[j].done;openShopping(i);saveQuiet()}
 function removeShoppingItem(i,j){data.shopping[i].items.splice(j,1);openShopping(i);saveQuiet()}
-function saveQuiet(){localStorage.setItem(STORE,JSON.stringify(data));}
+function saveQuiet(){persistLocal()}
 function toast(t){const el=$('#toast');el.textContent=t;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200)}
 $('#export-btn').onclick=()=>{const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mi-espacio-respaldo.json';a.click();URL.revokeObjectURL(a.href);toast('Copia de seguridad descargada')};
 $('#import-file').onchange=e=>{const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=()=>{try{data={...emptyData,...JSON.parse(r.result)};save();toast('Copia restaurada')}catch{alert('El archivo no tiene un formato válido.')}};r.readAsText(file);e.target.value=''};
@@ -94,7 +96,12 @@ async function authenticate(e,mode='signin'){
  if(mode==='signup'&&!result.data.session){if(err)err.textContent='Cuenta creada. Revisá tu correo para confirmar el registro y después ingresá.';return}
  closeModal();toast(mode==='signup'?'Cuenta creada':'Sesión iniciada');
 }
-async function signOut(){await cloudClient.auth.signOut();cloudUser=null;cloudReady=false;setAccountLabel('Ingresar / crear cuenta');closeModal();toast('Sesión cerrada')}
+async function signOut(){
+ if(cloudUser){persistLocal();if(cloudReady&&localChangePending)await pushCloud();}
+ const {error}=await cloudClient.auth.signOut();
+ if(error){toast('No se pudo cerrar la sesión: '+error.message);return}
+ cloudUser=null;cloudReady=false;localChangePending=false;activeStorageKey=STORE+':anonymous';data=loadData(activeStorageKey);render();setAccountLabel('Ingresar / crear cuenta');closeModal();toast('Sesión cerrada');
+}
 function urlBase64ToUint8Array(base64String){
  const padding='='.repeat((4-base64String.length%4)%4);
  const raw=atob((base64String+padding).replace(/-/g,'+').replace(/_/g,'/'));
@@ -127,8 +134,9 @@ async function syncNow(showToast=false){
   if(!row){
    const {error:upErr}=await cloudClient.from('mi_espacio').upsert({user_id:cloudUser.id,datos:data,updated_at:new Date().toISOString()});
    if(upErr)throw upErr;
+   persistLocal();
   }else{
-   cloudApplying=true;data={...emptyData,...(row.datos||{})};localStorage.setItem(STORE,JSON.stringify(data));render();cloudApplying=false;
+   cloudApplying=true;data={...emptyData,...(row.datos||{})};persistLocal();render();cloudApplying=false;
   }
   cloudReady=true;setSyncMessage('Sincronización activa. Última comprobación: '+new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}));
   if(showToast)toast('Datos sincronizados');
@@ -143,7 +151,13 @@ async function pushCloud(){
 function scheduleCloudSync(){if(!cloudReady||cloudApplying)return;localChangePending=true;clearTimeout(syncTimer);syncTimer=setTimeout(pushCloud,700)}
 async function startCloudSession(session){
  const nextUser=session?.user||null;
- if(!nextUser){cloudUser=null;cloudReady=false;setAccountLabel('Ingresar / crear cuenta');return}
+ if(!nextUser){
+  cloudUser=null;cloudReady=false;localChangePending=false;activeStorageKey=STORE+':anonymous';data=loadData(activeStorageKey);render();setAccountLabel('Ingresar / crear cuenta');return;
+ }
+ if(cloudUser?.id!==nextUser.id){
+  cloudReady=false;localChangePending=false;activeStorageKey=STORE+':'+nextUser.id;
+  data=loadData(activeStorageKey);render();
+ }
  cloudUser=nextUser;setAccountLabel('Cuenta: '+(cloudUser.email||'conectada'));
  await syncNow(false);
  await openReminderFromNotification();
@@ -159,7 +173,7 @@ async function initCloud(){
  setInterval(()=>{if(cloudUser&&!document.hidden)syncNow(false)},15000);
 }
 const originalSave=save;
-save=function(){localStorage.setItem(STORE,JSON.stringify(data));render();scheduleCloudSync()};
-saveQuiet=function(){localStorage.setItem(STORE,JSON.stringify(data));scheduleCloudSync()};
+save=function(){persistLocal();render();scheduleCloudSync()};
+saveQuiet=function(){persistLocal();scheduleCloudSync()};
 $('#account-btn')?.addEventListener('click',accountDialog);
 initCloud();
