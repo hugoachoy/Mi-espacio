@@ -70,8 +70,9 @@ async function hash(value: string): Promise<string> {
 Deno.serve(async (req) => {
   if (req.method !== "POST") return Response.json({ error: "Método no permitido" }, { status: 405 });
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  const auth = req.headers.get("authorization") ?? "";
-  if (!serviceKey || auth !== `Bearer ${serviceKey}`) {
+  const cronSecret = Deno.env.get("PUSH_CRON_SECRET") ?? "";
+  const suppliedSecret = req.headers.get("x-cron-secret") ?? "";
+  if (!serviceKey || !cronSecret || suppliedSecret !== cronSecret) {
     return Response.json({ error: "No autorizado" }, { status: 401 });
   }
 
