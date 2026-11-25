@@ -48,11 +48,24 @@ Aplicación web progresiva (PWA) para organización personal. Está publicada en
 - Diseño adaptable a pantallas de computadora y celular.
 - Navegación lateral en escritorio y menú inferior en dispositivos móviles.
 
+## Cuentas de usuario y separación de datos
+
+Mi Espacio admite distintas cuentas de usuario. Cada persona puede registrarse e iniciar sesión con su propia cuenta de correo electrónico y contraseña.
+
+- Cada cuenta mantiene sus propios registros en Supabase, asociados al identificador único del usuario.
+- Las políticas de seguridad por usuario (Row Level Security, RLS) impiden que una cuenta consulte o modifique los datos de otra.
+- El almacenamiento local del navegador también se separa por usuario: cada cuenta utiliza su propio espacio local.
+- Al cerrar sesión, la aplicación vuelve al espacio anónimo y no deja visibles los registros de la cuenta que acaba de cerrarse.
+- Una cuenta nueva comienza sin los registros de otras cuentas.
+- Se puede utilizar la misma cuenta en varios dispositivos para acceder a los mismos datos sincronizados.
+
+La separación entre cuentas fue probada con dos usuarios: cada uno conservó sus propios registros y los datos de prueba de la segunda cuenta no aparecieron en la cuenta principal.
+
 ## Sincronización entre dispositivos
 
-La aplicación permite iniciar sesión con una cuenta de correo electrónico y contraseña. Al utilizar la misma cuenta en la computadora y en Android, los datos se sincronizan mediante **Supabase**.
+Al iniciar sesión con la misma cuenta en la computadora y en Android, los datos de esa cuenta se sincronizan mediante **Supabase**.
 
-- Los datos se mantienen también en el almacenamiento local del navegador.
+- Los datos se mantienen también en el almacenamiento local del navegador, separado por cuenta.
 - La aplicación consulta cambios al recuperar el foco y periódicamente mientras está abierta.
 - Los cambios realizados se envían a la nube automáticamente.
 - Desde el panel de cuenta se puede solicitar una sincronización manual y consultar el estado.
@@ -69,6 +82,8 @@ Las notificaciones se gestionan mediante el sistema Web Push y una función de S
 - Se contemplan avisos anticipados expresados en minutos, horas, días o semanas.
 - El sistema evita enviar repetidamente la misma notificación para un mismo aviso.
 - Al abrir una notificación, se intenta localizar el recordatorio y mostrar su ficha.
+
+Las suscripciones de notificaciones se asocian al usuario autenticado y al dispositivo correspondiente. Cada usuario debe activar las notificaciones en cada dispositivo que quiera utilizar.
 
 Las notificaciones dependen de los permisos del navegador, la conexión y los servicios del dispositivo. Para asuntos críticos, conviene mantener un medio de respaldo.
 
@@ -117,8 +132,8 @@ Para probar las funciones de PWA y el service worker se requiere localhost o un 
 - Repositorio: https://github.com/hugoachoy/Mi-espacio
 - Sitio publicado: https://hugoachoy.github.io/Mi-espacio/
 
-Al modificar archivos de la aplicación, se debe actualizar la versión de caché definida en la primera línea de sw.js (actualmente mi-espacio-shell-v12) para que los navegadores descarguen los archivos nuevos. No es necesario ni recomendable borrar el almacenamiento local: allí pueden existir datos del usuario.
+Al modificar archivos de la aplicación, se debe actualizar la versión de caché definida en la primera línea de sw.js (actualmente mi-espacio-shell-v13) para que los navegadores descarguen los archivos nuevos. No es necesario ni recomendable borrar el almacenamiento local: allí pueden existir datos del usuario.
 
 ## Estado del proyecto
 
-Mi Espacio está en uso y probada en computadora y Android. La autenticación, sincronización entre dispositivos, copias de seguridad, notificaciones push y apertura del recordatorio desde la notificación ya fueron implementadas y verificadas. El proyecto continúa evolucionando; este README describe las funciones implementadas actualmente, no una lista de funciones futuras.
+Mi Espacio está en uso y probada en computadora y Android. Se verificaron la autenticación, la separación de datos entre cuentas, el cierre de sesión sin exposición de registros, la sincronización entre dispositivos, las copias de seguridad, las notificaciones push para ambas cuentas de prueba y la apertura del recordatorio desde la notificación. El proyecto continúa evolucionando; este README describe las funciones implementadas actualmente, no una lista de funciones futuras.
