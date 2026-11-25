@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
           for (const subRow of userSubs) {
             try {
               const subscriber = appServer.subscribe(subRow.subscription);
-              await subscriber.pushTextMessage(payload, { urgency: webpush.Urgency.High, ttl: 3600 });
+              await subscriber.pushTextMessage(payload, { topic: reminderId.slice(0, 32), urgency: webpush.Urgency.High, ttl: 3600 });
               delivered++;
             } catch (err) {
               failed++;
