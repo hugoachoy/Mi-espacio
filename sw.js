@@ -7,8 +7,6 @@ self.addEventListener('push',e=>{
  try{if(e.data)payload={...payload,...e.data.json()}}catch{if(e.data)payload.body=e.data.text()}
  e.waitUntil(self.registration.showNotification(payload.title||'MI ESPACIO',{
   body:payload.body||'Tenés un recordatorio pendiente.',
-  icon:'./icons/icon-192.png',
-  badge:'./icons/icon-192.png',
   data:{url:payload.url||'/'},
   tag:payload.tag||undefined,
   renotify:false
