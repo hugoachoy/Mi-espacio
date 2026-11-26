@@ -50,3 +50,49 @@ body.mobile-menu-open .fab{display:none!important}
 /* Estado visual de recordatorios realizados */
 .reminder-card.is-done{background:#eaf1ef;border-color:#cbdcd7}
 .reminder-status{display:inline-block;margin-top:7px;padding:4px 9px;border-radius:20px;background:#d5e5df;color:#365f55;font-size:9px;font-weight:800;letter-spacing:.7px}
+
+/* Bandeja de notificaciones Gmail */
+.gmail-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 16px}
+.gmail-summary{font-size:12px;color:var(--muted)}
+.gmail-list{display:grid;gap:12px}
+.gmail-card{max-width:100%}
+.gmail-card.is-unread{border-left:4px solid var(--accent)}
+.gmail-card-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.gmail-card-top strong{overflow-wrap:anywhere}
+.gmail-state{font-size:9px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:20px;padding:4px 8px;white-space:nowrap}
+.gmail-card.is-read .gmail-state{color:var(--muted);background:var(--bg)}
+.gmail-sender{overflow-wrap:anywhere}
+.gmail-actions{margin-top:12px;align-items:center;flex-wrap:wrap}
+.gmail-actions .primary-btn,.gmail-actions .secondary-btn{padding:8px 11px;font-size:10px}
+.theme-toggle{width:34px;height:34px;border:1px solid var(--line);border-radius:50%;background:var(--surface);color:var(--ink);font-size:17px;cursor:pointer}
+@media(max-width:680px){.gmail-toolbar{align-items:flex-start}.gmail-actions{gap:6px}.gmail-actions button{min-height:34px}}
+/* Tema oscuro */
+body[data-theme="dark"]{
+ --bg:#111820;--surface:#1b2631;--ink:#e7edf2;--muted:#a2afbb;--line:#2b3946;
+ --accent:#83aaa2;--accent-dark:#b1d0c8;--accent-soft:#263b3b;--gold:#d9ad70;
+ --danger:#e18b8b;--shadow:0 8px 28px rgba(0,0,0,.18);
+ color-scheme:dark
+}
+body[data-theme="dark"] .sidebar,
+body[data-theme="dark"] .topbar,
+body[data-theme="dark"] .bottom-nav{background:#18222c;border-color:var(--line)}
+body[data-theme="dark"] .nav-item{color:#aebbc6}
+body[data-theme="dark"] .nav-item.active,body[data-theme="dark"] .nav-item:hover{background:#263b3b;color:#c5e0d8}
+body[data-theme="dark"] .breadcrumb b,body[data-theme="dark"] .item-content strong,
+body[data-theme="dark"] .empty-state strong,body[data-theme="dark"] .panel-head h2{color:var(--ink)}
+body[data-theme="dark"] .privacy-note,body[data-theme="dark"] .account-status{background:#263b3b;color:#c5e0d8}
+body[data-theme="dark"] .privacy-note span{color:#b4c5bf}
+body[data-theme="dark"] .quick-tile,body[data-theme="dark"] .search-input,
+body[data-theme="dark"] .form-control,body[data-theme="dark"] .modal{background:var(--surface);color:var(--ink);border-color:var(--line)}
+body[data-theme="dark"] .modal{background:#1b2631}
+body[data-theme="dark"] .secondary-btn,body[data-theme="dark"] .small-icon-btn,
+body[data-theme="dark"] .close-btn,body[data-theme="dark"] .tag{background:#2a3743;color:#d1dbe3}
+body[data-theme="dark"] .mini-row,body[data-theme="dark"] .check-row{border-color:var(--line)}
+body[data-theme="dark"] .row-main small,body[data-theme="dark"] .item-meta,
+body[data-theme="dark"] .today,body[data-theme="dark"] .form-field label{color:#aab7c2}
+body[data-theme="dark"] .empty-state{background:var(--surface);border-color:var(--line)}
+body[data-theme="dark"] .reminder-card.is-done{background:#233a35;border-color:#36564d}
+body[data-theme="dark"] .reminder-status{background:#34564c;color:#d0e7dd}
+body[data-theme="dark"] .med-stock{background:#34414c}
+body[data-theme="dark"] .fab{background:#547d75}
+body[data-theme="dark"] .theme-toggle{background:#263440;color:#f1d7a0;border-color:#40505d}
