@@ -108,7 +108,19 @@ function setAccountLabel(label){const b=$('#account-btn');if(b)b.title=label}
 function accountDialog(){
  const logged=!!cloudUser;
  $('#modal-root').innerHTML=`<div class="modal-backdrop" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modal-head"><div><div class="eyebrow">MI ESPACIO EN TUS DISPOSITIVOS</div><h2>${logged?'Cuenta y sincronización':'Conectar MI ESPACIO'}</h2></div><button class="close-btn" onclick="closeModal()">×</button></div>
- ${logged?`<p class="account-copy">Sesión iniciada con <strong>${esc(cloudUser.email||'tu cuenta')}</strong>.</p><p class="account-status" id="account-sync-status">Consultando sincronización…</p><div class="form-actions"><button class="secondary-btn" onclick="enablePushNotifications()">Activar notificaciones en este dispositivo</button><button class="secondary-btn" onclick="closeModal();syncNow(true)">Sincronizar ahora</button><button class="secondary-btn" onclick="signOut()">Cerrar sesión</button><button class="primary-btn" onclick="closeModal()">Listo</button></div>`:`<p class="account-copy">Usá el mismo correo y contraseña en Chrome del celular y de la computadora. Así ambos accederán a tus datos.</p><form class="account-form" onsubmit="authenticate(event)"><div class="form-field"><label>Correo electrónico</label><input class="form-control" type="email" name="email" autocomplete="email" required></div><div class="form-field"><label>Contraseña</label><input class="form-control" type="password" name="password" autocomplete="current-password" minlength="6" required></div><div id="auth-error" class="auth-error"></div><div class="form-actions"><button type="button" class="secondary-btn" onclick="closeModal()">Cancelar</button><button type="button" class="secondary-btn" onclick="authenticate(event,'signup')">Crear cuenta</button><button class="primary-btn" type="submit">Ingresar</button></div></form>`}</div></div>`;
+ ${logged?`<p class="account-copy">Sesión iniciada con <strong>${esc(cloudUser.email||'tu cuenta')}</strong>.</p><p class="account-status" id="account-sync-status">Consultando sincronización…</p><div class="form-actions"><button class="secondary-btn" onclick="connectGmail()">Conectar una cuenta de Gmail</button><button class="secondary-btn" onclick="enablePushNotifications()">Activar notificaciones en este dispositivo</button><button class="secondary-btn" onclick="closeModal();syncNow(true)">Sincronizar ahora</button><button class="secondary-btn" onclick="signOut()">Cerrar sesión</button><button class="primary-btn" onclick="closeModal()">Listo</button></div>`:`<p class="account-copy">Usá el mismo correo y contraseña en Chrome del celular y de la computadora. Así ambos accederán a tus datos.</p><form class="account-form" onsubmit="authenticate(event)"><div class="form-field"><label>Correo electrónico</label><input class="form-control" type="email" name="email" autocomplete="email" required></div><div class="form-field"><label>Contraseña</label><input class="form-control" type="password" name="password" autocomplete="current-password" minlength="6" required></div><div id="auth-error" class="auth-error"></div><div class="form-actions"><button type="button" class="secondary-btn" onclick="closeModal()">Cancelar</button><button type="button" class="secondary-btn" onclick="authenticate(event,'signup')">Crear cuenta</button><button class="primary-btn" type="submit">Ingresar</button></div></form>`}</div></div>`;
+}
+async function connectGmail(){
+ if(!cloudUser||!cloudClient){toast('Primero iniciá sesión en MI ESPACIO');return}
+ try{
+  const {data,error}=await cloudClient.functions.invoke('gmail-oauth-start',{body:{}});
+  if(error)throw error;
+  if(!data?.auth_url)throw new Error('La función no devolvió la dirección de autorización');
+  location.href=data.auth_url;
+ }catch(err){
+  console.error('Error al iniciar conexión con Gmail:',err);
+  alert('No se pudo iniciar la conexión con Gmail: '+(err.message||err));
+ }
 }
 async function authenticate(e,mode='signin'){
  if(e)e.preventDefault();
@@ -203,3 +215,14 @@ save=function(){persistLocal();render();scheduleCloudSync()};
 saveQuiet=function(){persistLocal();scheduleCloudSync()};
 $('#account-btn')?.addEventListener('click',accountDialog);
 initCloud();
+const gmailParams=new URLSearchParams(location.search);
+if(gmailParams.get('gmail_connected')==='1'){
+ gmailParams.delete('gmail_connected');
+ history.replaceState(null,'',location.pathname+(gmailParams.toString()?'?'+gmailParams.toString():'')+location.hash);
+ toast('Cuenta de Gmail conectada correctamente');
+}else if(gmailParams.get('gmail_error')){
+ const gmailError=gmailParams.get('gmail_error');
+ gmailParams.delete('gmail_error');
+ history.replaceState(null,'',location.pathname+(gmailParams.toString()?'?'+gmailParams.toString():'')+location.hash);
+ setTimeout(()=>alert('No se pudo conectar Gmail: '+gmailError),300);
+}
