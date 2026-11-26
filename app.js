@@ -52,13 +52,40 @@ function filterCards(q){const cards=[...document.querySelectorAll('#list-results
 function fields(p,x={}){const f=(label,key,type='text',placeholder='',full=false)=>`<div class="form-field ${full?'full':''}"><label>${label}</label><input class="form-control" name="${key}" type="${type}" value="${esc(x[key]||'')}" placeholder="${placeholder}" ${key==='title'||key==='name'?'required':''}></div>`;const ta=(label,key,full=true)=>`<div class="form-field ${full?'full':''}"><label>${label}</label><textarea class="form-control" name="${key}" rows="2">${esc(x[key]||'')}</textarea></div>`;
 if(p==='recordatorios')return f('Qué tenés que recordar','title','text','Ej. Retirar un pedido',true)+f('Fecha','date','date')+f('Horario','time','time')+f('Avisarme con anticipación','advance','text','Ej. 30 minutos, 1 día')+ta('Detalles','note');
 if(p==='compras')return f('Nombre de la lista','name','text','Ej. Compras del súper',true)+f('Lugar o comercio','place','text','Ej. Supermercado',true)+ta('Notas','note');
-if(p==='medicacion')return f('Nombre del medicamento','name','text','Nombre',true)+f('Presentación','presentation','text','Ej. Caja x 30 comprimidos')+f('Stock actual','stock','number','0')+f('Unidad','unit','text','unidades')+f('Stock mínimo','min','number','0')+f('Fecha de vencimiento','expiry','date')+f('Próximo pedido','orderDate','date')+f('Farmacia / proveedor','supplier','text','')+ta('Notas','note');
+if(p==='medicacion')return f('Nombre del medicamento','name','text','Nombre',true)+f('Presentación','presentation','text','Ej. Caja x 30 comprimidos')+f('Stock actual','stock','number','0')+f('Unidad','unit','text','unidades')+f('Stock mínimo','min','number','0')+f('Fecha de vencimiento','expiry','date')+f('Días de anticipación para hacer el pedido','orderLeadDays','number','Ej. 15')+f('Horario del recordatorio','orderReminderTime','time')+f('Próximo pedido','orderDate','date')+f('Farmacia / proveedor','supplier','text','')+ta('Notas','note');
 if(p==='enlaces')return f('Título','title','text','Nombre del sitio o video',true)+f('Tipo','type','text','Web / YouTube')+f('Dirección URL','url','url','https://...',true)+f('Categoría','category','text','')+ta('Descripción o nota','description');
 if(p==='peliculas')return f('Título','title','text','Nombre de la película o serie',true)+f('Tipo','type','text','Película / Serie')+f('Año','year','number','')+f('Plataforma','platform','text','')+f('Estado','status','text','Pendiente / Viendo / Vista')+f('Género','category','text','')+ta('Comentario personal','description');
 return f('Nombre','name','text','Nombre del código o aplicación',true)+f('Código','code','text','Código para copiar',true)+f('Categoría','category','text','')+f('Enlace opcional','url','url','https://...',true)+ta('Descripción','description');}
 function openForm(p,idx=null){const c=configs[p],x=idx!==null?data[c.key][idx]:{};$('#modal-root').innerHTML=`<div class="modal-backdrop" onclick="if(event.target===this)closeModal()"><form class="modal" onsubmit="submitForm(event,'${p}',${idx===null?'null':idx})"><div class="modal-head"><h2>${idx===null?c.add:'Editar elemento'}</h2><button type="button" class="close-btn" onclick="closeModal()">×</button></div><div class="form-grid">${fields(p,x)}</div><div class="form-actions"><button type="button" class="secondary-btn" onclick="closeModal()">Cancelar</button><button class="primary-btn" type="submit">Guardar</button></div></form></div>`}
-function submitForm(e,p,idx){e.preventDefault();const obj=Object.fromEntries(new FormData(e.target).entries());const key=configs[p].key;if(p==='compras'&&idx===null)obj.items=[];if(idx===null)data[key].unshift(obj);else data[key][idx]={...data[key][idx],...obj};closeModal();save();toast('Guardado correctamente');}
-function closeModal(){$('#modal-root').innerHTML=''}function editItem(p,i){openForm(p,i)}function deleteItem(key,i){if(confirm('¿Querés eliminar este elemento?')){data[key].splice(i,1);save();toast('Elemento eliminado')}}
+function dateMinusDays(date,days){const [y,m,d]=String(date).split('-').map(Number);if(!y||!m||!d)return '';const dt=new Date(Date.UTC(y,m-1,d-days));return dt.toISOString().slice(0,10)}
+function syncMedicationReminder(med){
+ const oldId=med._reminderId;
+ const daysText=String(med.orderLeadDays??'').trim();
+ const days=daysText===''?null:Number(daysText);
+ if(!med.expiry||days===null||!Number.isInteger(days)||days<0||days>365){
+  if(oldId)data.reminders=data.reminders.filter(r=>r.medicationId!==oldId);
+  med.orderDate='';
+  med._reminderId='';
+  return;
+ }
+ const orderDate=dateMinusDays(med.expiry,days);
+ med.orderDate=orderDate;
+ med._reminderId=oldId||('med-'+(crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random().toString(36).slice(2)));
+ const reminder={
+  title:'Hacer pedido de '+String(med.name||'medicación'),
+  date:orderDate,
+  time:med.orderReminderTime||'09:00',
+  advance:'',
+  note:'Recordatorio automático de MI ESPACIO. Vencimiento: '+dateFmt(med.expiry)+'. Anticipación configurada: '+days+' día(s).'+(med.supplier?' Proveedor: '+med.supplier+'.':''),
+  done:false,
+  medicationId:med._reminderId
+ };
+ const existing=data.reminders.findIndex(r=>r.medicationId===med._reminderId);
+ if(existing>=0)data.reminders[existing]={...data.reminders[existing],...reminder};
+ else data.reminders.unshift(reminder);
+}
+function submitForm(e,p,idx){e.preventDefault();const obj=Object.fromEntries(new FormData(e.target).entries());const key=configs[p].key;if(p==='compras'&&idx===null)obj.items=[];if(p==='medicacion'){const med=idx===null?obj:{...data.meds[idx],...obj};syncMedicationReminder(med);if(idx===null)data.meds.unshift(med);else data.meds[idx]=med;}else if(idx===null)data[key].unshift(obj);else data[key][idx]={...data[key][idx],...obj};closeModal();save();toast(p==='medicacion'&&obj.orderLeadDays?'Medicamento y recordatorio guardados':'Guardado correctamente');}
+function closeModal(){$('#modal-root').innerHTML=''}function editItem(p,i){openForm(p,i)}function deleteItem(key,i){if(confirm('¿Querés eliminar este elemento?')){if(key==='meds'){const med=data.meds[i];if(med?._reminderId)data.reminders=data.reminders.filter(r=>r.medicationId!==med._reminderId)}data[key].splice(i,1);save();toast('Elemento eliminado')}}
 function quickAdd(){const opts=Object.entries(configs).map(([p,c])=>`<button class="quick-tile" onclick="closeModal();openForm('${p}')"><span class="tile-icon">${c.icon}</span><strong>${c.title}</strong><small>${c.add}</small></button>`).join('');$('#modal-root').innerHTML=`<div class="modal-backdrop" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modal-head"><h2>¿Qué querés agregar?</h2><button class="close-btn" onclick="closeModal()">×</button></div><div class="quick-grid">${opts}</div></div></div>`}
 function openShopping(i){activeList=i;const x=data.shopping[i];$('#modal-root').innerHTML=`<div class="modal-backdrop" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modal-head"><div><h2>${esc(x.name)}</h2><small style="color:#8a949e">${esc(x.place||'')}</small></div><button class="close-btn" onclick="closeModal()">×</button></div><form onsubmit="addShoppingItem(event)"><div style="display:flex;gap:8px"><input class="form-control" name="item" placeholder="Agregar artículo..." required><input class="form-control" name="qty" placeholder="Cantidad" style="max-width:95px"><button class="primary-btn">＋</button></div></form><div style="margin-top:15px">${x.items.map((it,j)=>`<div class="check-row ${it.done?'done':''}"><input type="checkbox" ${it.done?'checked':''} onchange="toggleShopping(${i},${j})"><span class="check-name">${esc(it.name)}</span><span class="check-qty">${esc(it.qty||'')}</span><button class="small-icon-btn" onclick="removeShoppingItem(${i},${j})">×</button></div>`).join('')||'<p style="color:#89939e;font-size:12px">Todavía no agregaste artículos.</p>'}</div><div class="form-actions"><button class="secondary-btn" onclick="closeModal()" type="button">Cerrar</button></div></div></div>`}
 function addShoppingItem(e){e.preventDefault();const f=new FormData(e.target);data.shopping[activeList].items.push({name:f.get('item'),qty:f.get('qty'),done:false});openShopping(activeList);saveQuiet()}
