@@ -37,13 +37,21 @@ return `${heading(c.title,c.desc,c.add)}<div class="toolbar"><input class="searc
 
 function dashboardSettings(){return {...{stats:true,mail:true,quick:true,review:true},...(data.settings?.dashboard||{})}}
 function toggleDashboardSection(key,checked){if(!data.settings)data.settings={};if(!data.settings.dashboard)data.settings.dashboard={};data.settings.dashboard[key]=checked;save()}
+function gmailAccountsDialog(){
+ if(!cloudUser){toast('Primero iniciá sesión en MI ESPACIO');return}
+ const known=[...new Set((gmailNotifications||[]).map(x=>x.account_email).filter(Boolean))];
+ $('#modal-root').innerHTML=`<div class="modal-backdrop" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modal-head"><div><div class="eyebrow">CUENTAS DE CORREO</div><h2>Administrar Gmail</h2></div><button class="close-btn" onclick="closeModal()">×</button></div>
+ <p class="account-copy">Conectá una cuenta de Gmail para recibir sus avisos dentro de MI ESPACIO.</p>
+ ${known.length?`<div class="settings-connected-list"><strong>Cuentas detectadas en tu bandeja</strong>${known.map(email=>`<div class="settings-connected-account">✉ ${esc(email)}</div>`).join('')}</div>`:'<p class="settings-description">Todavía no hay cuentas de Gmail identificadas en la bandeja de notificaciones.</p>'}
+ <div class="form-actions"><button class="primary-btn" onclick="connectGmail()">Conectar una cuenta de Gmail</button><button class="secondary-btn" onclick="closeModal()">Cerrar</button></div></div></div>`;
+}
 function settingsPage(){
  const prefs=dashboardSettings();
  const items=[['stats','Resumen de cantidades','Recordatorios, listas, medicamentos y enlaces'],['mail','Últimos correos recibidos','Vista previa de los mensajes detectados'],['quick','Accesos rápidos','Botones para crear nuevos elementos'],['review','Para revisar','Reposición de medicación y biblioteca personal']];
  return `${heading('Configuración','Personalizá MI ESPACIO y administrá tus servicios conectados.')}<div class="settings-layout">
  <section class="panel settings-panel"><div class="panel-head"><h2>Secciones del Inicio</h2><span class="tag">PERSONALIZAR</span></div><p class="settings-description">Elegí qué paneles querés ver en el dashboard. La selección se sincroniza con tu cuenta y se aplica en PC y Android.</p><div class="settings-options">${items.map(([key,title,desc])=>`<label class="settings-option"><span><strong>${title}</strong><small>${desc}</small></span><input type="checkbox" ${prefs[key]?'checked':''} onchange="toggleDashboardSection('${key}',this.checked)"></label>`).join('')}</div></section>
  <section class="panel settings-panel"><div class="panel-head"><h2>Cuentas y servicios</h2><span class="tag">CORREO</span></div><p class="settings-description">Conectá las cuentas de correo que querés consultar desde MI ESPACIO. La administración se ampliará para varios proveedores.</p>
- <div class="settings-service"><div><strong>Gmail</strong><small>Integración actual disponible</small></div><button class="secondary-btn" onclick="accountDialog()">Administrar cuenta</button></div>
+ <div class="settings-service"><div><strong>Gmail</strong><small>Integración actual disponible</small></div><button class="secondary-btn" onclick="gmailAccountsDialog()">Administrar cuenta</button></div>
  <div class="settings-service"><div><strong>Outlook / Hotmail</strong><small>Integración en preparación</small></div><span class="service-pending">Próximamente</span></div>
  <p class="settings-description">La estructura se diseñará para admitir también Yahoo, iCloud y otros proveedores compatibles. Cada cuenta tendrá su propia autorización y controles.</p></section></div>
  <div class="dashboard-settings-link"><button class="subtle-link" onclick="go('inicio')">← Volver al Inicio</button></div>`;
@@ -200,8 +208,12 @@ async function connectGmail(){
  if(!cloudUser||!cloudClient){toast('Primero iniciá sesión en MI ESPACIO');return}
  try{
   const {data,error}=await cloudClient.functions.invoke('gmail-oauth-start',{body:{}});
-  if(error)throw error;
-  if(!data?.auth_url)throw new Error('La función no devolvió la dirección de autorización');
+  if(error){
+   let detail=error.message||'Error al invocar la función';
+   try{const body=await error.context?.clone?.().json();if(body?.error||body?.message)detail=body.error||body.message}catch(_){}
+   throw new Error(detail);
+  }
+  if(!data?.auth_url)throw new Error(data?.error||'La función no devolvió la dirección de autorización');
   location.href=data.auth_url;
  }catch(err){
   console.error('Error al iniciar conexión con Gmail:',err);
