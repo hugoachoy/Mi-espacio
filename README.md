@@ -34,6 +34,9 @@ Aplicación web progresiva (PWA) para organización personal. Está publicada en
 - Fecha de vencimiento y próximo pedido.
 - Farmacia o proveedor y notas.
 - Indicador en el panel de inicio para consultar los medicamentos que necesitan reposición.
+- Recordatorio automático individual para hacer el pedido una cantidad configurable de días antes del vencimiento.
+- El horario del aviso se configura para cada medicamento; el recordatorio se integra con el sistema general de notificaciones push.
+- La fecha de próximo pedido se calcula automáticamente a partir del vencimiento y los días de anticipación. También se puede seguir usando una fecha de pedido manual si no se configura el aviso.
 
 ### Biblioteca personal
 - **Enlaces y videos:** título, tipo, dirección web, categoría y descripción.
@@ -132,7 +135,7 @@ Para probar las funciones de PWA y el service worker se requiere localhost o un 
 - Repositorio: https://github.com/hugoachoy/Mi-espacio
 - Sitio publicado: https://hugoachoy.github.io/Mi-espacio/
 
-Al modificar archivos de la aplicación, se debe actualizar la versión de caché definida en la primera línea de sw.js (actualmente mi-espacio-shell-v13) para que los navegadores descarguen los archivos nuevos. No es necesario ni recomendable borrar el almacenamiento local: allí pueden existir datos del usuario.
+Al modificar archivos de la aplicación, se debe actualizar la versión de caché definida en la primera línea de sw.js (actualmente mi-espacio-shell-v14) para que los navegadores descarguen los archivos nuevos. No es necesario ni recomendable borrar el almacenamiento local: allí pueden existir datos del usuario.
 
 ## Estado del proyecto
 
