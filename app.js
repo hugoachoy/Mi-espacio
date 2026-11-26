@@ -2,6 +2,7 @@ const STORE='mi-espacio-v1';
 const emptyData={reminders:[],shopping:[],meds:[],links:[],movies:[],codes:[]};
 let activeStorageKey=STORE+':anonymous';
 let gmailNotifications=[],gmailLoading=false,gmailLoadError='';
+let cloudClient=null, cloudUser=null, cloudReady=false, cloudApplying=false, syncTimer=null, syncBusy=false, localChangePending=false;
 let data=loadData(activeStorageKey),page='inicio',activeList=null;
 function loadData(key=activeStorageKey){try{return {...emptyData,...JSON.parse(localStorage.getItem(key)||'{}')}}catch{return structuredClone(emptyData)}}
 function persistLocal(){localStorage.setItem(activeStorageKey,JSON.stringify(data))}
@@ -181,7 +182,6 @@ render();
 const SUPABASE_URL='https://hpzhsiqghcaaxfrtrdvn.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_4nogSoAlGTJL7v22R2hXPg_gEzVDw_h';
 const VAPID_PUBLIC_KEY='BO52i93wpkebzUtSrBm-0IV98t8SEvpEcc9M-RdoSEk9YocilU1q0dOXjSFGD9azebI3M8d4sJ2Vc0hcvDS3eD8';
-let cloudClient=null, cloudUser=null, cloudReady=false, cloudApplying=false, syncTimer=null, syncBusy=false, localChangePending=false;
 function localHasContent(){return Object.values(data).some(v=>Array.isArray(v)&&v.length>0)}
 function setAccountLabel(label){const b=$('#account-btn');if(b)b.title=label}
 function accountDialog(){
