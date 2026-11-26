@@ -9,15 +9,79 @@ const $=s=>document.querySelector(s);const esc=s=>String(s??'').replace(/[&<>"']
 const dateFmt=v=>v?new Date(v+'T12:00:00').toLocaleDateString('es-AR'):'';
 const today=new Date();$('#today-label').textContent=today.toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short'});
 const configs={recordatorios:{title:'Recordatorios',desc:'Fechas, horarios y cosas que no querés olvidar.',key:'reminders',icon:'◷',add:'Nuevo recordatorio'},compras:{title:'Listas de compras',desc:'Organizá lo que necesitás comprar en cada lugar.',key:'shopping',icon:'☷',add:'Nueva lista'},medicacion:{title:'Medicación',desc:'Controlá existencias, vencimientos y próximos pedidos.',key:'meds',icon:'✚',add:'Agregar medicamento'},enlaces:{title:'Enlaces y videos',desc:'Guardá páginas y videos que quieras encontrar fácilmente.',key:'links',icon:'↗',add:'Guardar enlace o video'},peliculas:{title:'Películas y series',desc:'Una biblioteca personal de lo que querés ver y ya viste.',key:'movies',icon:'▣',add:'Agregar título'},codigos:{title:'Códigos útiles',desc:'Tené a mano códigos y datos que necesitás consultar.',key:'codes',icon:'⌘',add:'Guardar código'}};
-function go(p){page=p;document.body.classList.remove('mobile-menu-open');document.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===p));render()}
+function go(p){page=p;document.body.classList.remove('mobile-menu-open');document.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===p));render();if(p==='gmail')loadGmailNotifications()}
 document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.page)));
 $('#mobile-menu').onclick=()=>document.body.classList.toggle('mobile-menu-open');
 $('#quick-add').onclick=()=>quickAdd();
 function heading(title,desc,btn){return `<div class="page-heading"><div><div class="eyebrow">TU ORGANIZACIÓN PERSONAL</div><h1>${title}</h1><p>${desc}</p></div>${btn?`<button class="primary-btn" onclick="openForm('${page}')">＋ ${btn}</button>`:''}</div>`}
-function render(){ $('#page-name').textContent=page==='inicio'?'Inicio':configs[page].title; $('#page-content').innerHTML=page==='inicio'?dashboard():listPage(page); }
+function render(){
+ const names={inicio:'Inicio',gmail:'Gmail'};
+ $('#page-name').textContent=names[page]||configs[page]?.title||'';
+ $('#page-content').innerHTML=page==='inicio'?dashboard():page==='gmail'?gmailPage():listPage(page);
+ const fab=$('#quick-add');if(fab)fab.style.display=page==='gmail'?'none':'';
+}
+
 function dashboard(){const upcoming=data.reminders.filter(x=>!x.done).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).slice(0,4);const low=data.meds.filter(x=>Number(x.stock)<=Number(x.min||0));const openLists=data.shopping.filter(x=>!x.done);return `${heading('Un lugar para todo.','Tu espacio personal para organizar, recordar y encontrar.')}<div class="stats-grid"><div class="stat-card" role="button" tabindex="0" style="cursor:pointer" aria-label="Ver recordatorios pendientes" onclick="go('recordatorios')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('recordatorios')}"><div class="stat-top">Recordatorios pendientes <span class="stat-icon">◷</span></div><div class="stat-number">${data.reminders.filter(x=>!x.done).length}</div><div class="stat-foot">Por resolver</div></div><div class="stat-card" role="button" tabindex="0" style="cursor:pointer" aria-label="Ver listas activas" onclick="go('compras')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('compras')}"><div class="stat-top">Listas activas <span class="stat-icon">☷</span></div><div class="stat-number">${openLists.length}</div><div class="stat-foot">Lugares de compra</div></div><div class="stat-card" role="button" tabindex="0" style="cursor:pointer" aria-label="Ver medicamentos" onclick="go('medicacion')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('medicacion')}"><div class="stat-top">Medicamentos <span class="stat-icon">✚</span></div><div class="stat-number">${data.meds.length}</div><div class="stat-foot">En seguimiento</div></div><div class="stat-card" role="button" tabindex="0" style="cursor:pointer" aria-label="Ver enlaces y videos" onclick="go('enlaces')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();go('enlaces')}"><div class="stat-top">Enlaces y videos <span class="stat-icon">↗</span></div><div class="stat-number">${data.links.length}</div><div class="stat-foot">Guardados</div></div></div><div class="dashboard-grid"><section class="panel"><div class="panel-head"><h2>Próximos recordatorios</h2><button class="subtle-link" onclick="go('recordatorios')">Ver todos →</button></div>${upcoming.length?`<div class="list-stack">${upcoming.map(x=>`<div class="mini-row" role="button" tabindex="0" onclick="openReminder(${data.reminders.indexOf(x)})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openReminder(${data.reminders.indexOf(x)})}"><span class="row-dot"></span><div class="row-main"><strong>${esc(x.title)}</strong><small>${esc(x.note||'Sin detalles')}</small></div><span class="row-date">${dateFmt(x.date)} ${esc(x.time||'')}</span></div>`).join('')}</div>`:`<div class="empty-state"><div class="empty-icon">◷</div><strong>Todo despejado por ahora</strong><p>Agregá un recordatorio para que no se te pase nada.</p><button class="secondary-btn" onclick="openForm('recordatorios')">Crear recordatorio</button></div>`}</section><section class="panel"><div class="panel-head"><h2>Accesos rápidos</h2><span class="tag">AGREGAR</span></div><div class="quick-grid"><button class="quick-tile" onclick="openForm('recordatorios')"><span class="tile-icon">◷</span><strong>Recordatorio</strong><small>Agendar fecha y hora</small></button><button class="quick-tile" onclick="openForm('compras')"><span class="tile-icon">☷</span><strong>Lista de compras</strong><small>Organizar por lugar</small></button><button class="quick-tile" onclick="openForm('medicacion')"><span class="tile-icon">✚</span><strong>Medicamento</strong><small>Controlar existencias</small></button><button class="quick-tile" onclick="openForm('enlaces')"><span class="tile-icon">↗</span><strong>Guardar enlace</strong><small>Web o YouTube</small></button></div></section></div><h2 class="section-title">Para revisar</h2><div class="cards-grid"><div class="item-card"><div class="item-symbol">✚</div><div class="item-content"><strong>Reposición de medicación</strong><p>${low.length?`${low.length} producto(s) llegaron al stock mínimo.`:'No hay medicamentos por debajo del mínimo.'}</p><button class="subtle-link" onclick="go('medicacion')">Revisar medicación →</button></div></div><div class="item-card"><div class="item-symbol">▤</div><div class="item-content"><strong>Tu biblioteca personal</strong><p>${data.links.length} enlaces y videos · ${data.movies.length} películas y series · ${data.codes.length} códigos.</p><button class="subtle-link" onclick="go('enlaces')">Abrir biblioteca →</button></div></div></div>`}
 function listPage(p){const c=configs[p],arr=data[c.key];let body='';if(p==='recordatorios'){body=arr.length?'<div class="cards-grid">'+arr.map((x,i)=>'<article class="item-card reminder-card '+(x.done?'is-done':'')+'" role="button" tabindex="0" onclick="openReminder('+i+')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openReminder('+i+')}"><div class="item-symbol">◷</div><div class="item-content"><strong>'+esc(x.title)+'</strong>'+(x.done?'<span class="reminder-status">REALIZADO</span>':'')+'<p>'+dateFmt(x.date)+' '+esc(x.time||'')+'</p><div class="item-meta">'+esc(x.advance?'Aviso anticipado: '+x.advance:'Sin anticipación configurada')+'</div><div class="item-actions" style="margin-top:10px"><button class="secondary-btn" onclick="event.stopPropagation();openReminder('+i+')">Ver detalle</button><button class="small-icon-btn" onclick="event.stopPropagation();editItem(\'recordatorios\','+i+')">✎</button></div></div></article>').join('')+'</div>':empty(c.icon,'Todavía no hay recordatorios.','Creá uno para agendar una fecha importante.');}else if(p==='compras'){body=arr.length?`<div class="cards-grid">${arr.map((x,i)=>`<article class="item-card"><div class="item-symbol">☷</div><div class="item-content"><strong>${esc(x.name)}</strong><p>${x.items.filter(y=>y.done).length} de ${x.items.length} artículos comprados</p><div class="med-stock"><span style="width:${x.items.length?100*x.items.filter(y=>y.done).length/x.items.length:0}%"></span></div><div class="item-meta">${esc(x.place||'Lugar sin especificar')}</div><div class="item-actions" style="margin-top:10px"><button class="secondary-btn" onclick="openShopping(${i})">Abrir lista</button><button class="small-icon-btn" onclick="deleteItem('shopping',${i})">×</button></div></div></article>`).join('')}</div>`:empty(c.icon,'Todavía no hay listas de compras.','Creá una lista para un comercio o lugar.');}else if(p==='medicacion'){body=arr.length?`<div class="cards-grid">${arr.map((x,i)=>`<article class="item-card"><div class="item-symbol">✚</div><div class="item-content"><strong>${esc(x.name)}</strong><p>${esc(x.presentation||'')} · Stock: ${esc(x.stock||'0')} ${esc(x.unit||'unidades')}</p><div class="item-meta">Mínimo: ${esc(x.min||'0')} · Vencimiento: ${dateFmt(x.expiry)||'No indicado'}${x.orderDate?' · Pedido: '+dateFmt(x.orderDate):''}${x.orderLeadDays!==undefined&&x.orderLeadDays!==''?' · Aviso '+esc(x.orderLeadDays)+' días antes':''}</div><div class="item-actions" style="margin-top:10px"><button class="small-icon-btn" onclick="editItem('medicacion',${i})">✎</button><button class="small-icon-btn" onclick="deleteItem('meds',${i})">×</button></div></div></article>`).join('')}</div>`:empty(c.icon,'Todavía no agregaste medicamentos.','Registrá existencias y vencimientos.');}else{body=arr.length?`<div class="cards-grid">${arr.map((x,i)=>`<article class="item-card"><div class="item-symbol">${c.icon}</div><div class="item-content"><strong>${esc(x.title||x.name)}</strong><p>${esc(x.description||x.note||x.url||x.code||'')}</p><div class="item-meta">${esc(x.category||x.type||'')}</div>${x.url?`<p><a href="${esc(x.url)}" target="_blank" rel="noopener">Abrir enlace ↗</a></p>`:''}<div class="item-actions" style="margin-top:9px"><button class="small-icon-btn" onclick="editItem('${p}',${i})">✎</button><button class="small-icon-btn" onclick="deleteItem('${c.key}',${i})">×</button></div></div></article>`).join('')}</div>`:empty(c.icon,`Todavía no hay elementos en ${c.title.toLowerCase()}.`,'Agregá el primero para empezar.');}
 return `${heading(c.title,c.desc,c.add)}<div class="toolbar"><input class="search-input" id="filter-input" placeholder="Buscar en ${c.title.toLowerCase()}..." oninput="filterCards(this.value)"></div><div id="list-results">${body}</div>`}
+let gmailNotifications=[],gmailLoading=false,gmailLoadError='';
+function gmailPage(){
+ const unread=gmailNotifications.filter(x=>!x.is_read).length;
+ const content=!cloudUser
+  ? '<div class="empty-state"><div class="empty-icon">✉</div><strong>Iniciá sesión para consultar Gmail</strong><p>La bandeja está asociada a tu cuenta de MI ESPACIO.</p><button class="primary-btn" onclick="accountDialog()">Iniciar sesión</button></div>'
+  : gmailLoading
+   ? '<div class="empty-state"><strong>Consultando notificaciones…</strong></div>'
+   : gmailLoadError
+    ? '<div class="empty-state"><strong>No se pudieron cargar las notificaciones</strong><p>'+esc(gmailLoadError)+'</p><button class="secondary-btn" onclick="loadGmailNotifications()">Reintentar</button></div>'
+    : gmailNotifications.length
+     ? '<div class="gmail-list">'+gmailNotifications.map(gmailNotificationCard).join('')+'</div>'
+     : '<div class="empty-state"><div class="empty-icon">✉</div><strong>No hay notificaciones de Gmail</strong><p>Cuando llegue un correo nuevo, aparecerá aquí.</p><button class="secondary-btn" onclick="accountDialog()">Configurar cuenta de Gmail</button></div>';
+ return `${heading('Notificaciones de Gmail','Consultá los correos nuevos detectados por MI ESPACIO.')}
+ <div class="gmail-toolbar"><div class="gmail-summary">${cloudUser?gmailNotifications.length+' correo(s) · '+unread+' sin leer':'Cuenta no conectada'}</div><button class="secondary-btn" onclick="loadGmailNotifications()" ${gmailLoading?'disabled':''}>↻ Actualizar</button></div>
+ ${content}`;
+}
+function gmailNotificationCard(n){
+ const when=n.message_date||n.notified_at;
+ const date=when?new Date(when).toLocaleString('es-AR',{dateStyle:'short',timeStyle:'short'}):'Fecha no disponible';
+ const sender=n.sender||'Remitente no disponible';
+ const subject=n.subject||'Correo detectado anteriormente';
+ return `<article class="item-card gmail-card ${n.is_read?'is-read':'is-unread'}">
+ <div class="item-symbol">✉</div><div class="item-content">
+ <div class="gmail-card-top"><strong>${esc(subject)}</strong><span class="gmail-state">${n.is_read?'Leído':'Nuevo'}</span></div>
+ <p class="gmail-sender">${esc(sender)}</p><div class="item-meta">${esc(n.account_email||'Cuenta Gmail')} · ${esc(date)}</div>
+ <div class="item-actions gmail-actions">
+ <button class="primary-btn" onclick="openGmailMessage('${esc(n.message_id||'')}')">Abrir en Gmail ↗</button>
+ ${n.is_read?'':`<button class="secondary-btn" onclick="markGmailRead('${esc(n.id)}')">Marcar leído</button>`}
+ <button class="small-icon-btn" title="Descartar" aria-label="Descartar" onclick="dismissGmailNotification('${esc(n.id)}')">×</button>
+ </div></div></article>`;
+}
+async function loadGmailNotifications(){
+ if(!cloudUser||!cloudClient){gmailNotifications=[];gmailLoadError='';render();return}
+ gmailLoading=true;gmailLoadError='';render();
+ try{
+  const {data,error}=await cloudClient.from('mi_espacio_gmail_notifications')
+   .select('id,account_email,sender,subject,message_date,message_id,is_read,notified_at,dismissed_at')
+   .eq('user_id',cloudUser.id).is('dismissed_at',null)
+   .order('notified_at',{ascending:false}).limit(50);
+  if(error)throw error;
+  gmailNotifications=data||[];
+ }catch(err){gmailLoadError=err.message||String(err)}
+ finally{gmailLoading=false;if(page==='gmail')render()}
+}
+function openGmailMessage(messageId){
+ if(!messageId){toast('Este registro no tiene un identificador de Gmail');return}
+ window.open('https://mail.google.com/mail/u/0/#all/'+encodeURIComponent(messageId),'_blank','noopener');
+}
+async function markGmailRead(id){
+ const {error}=await cloudClient.from('mi_espacio_gmail_notifications').update({is_read:true}).eq('id',id).eq('user_id',cloudUser.id);
+ if(error){toast('No se pudo actualizar: '+error.message);return}
+ const item=gmailNotifications.find(x=>x.id===id);if(item)item.is_read=true;render();toast('Correo marcado como leído');
+}
+async function dismissGmailNotification(id){
+ const {error}=await cloudClient.from('mi_espacio_gmail_notifications').update({dismissed_at:new Date().toISOString()}).eq('id',id).eq('user_id',cloudUser.id);
+ if(error){toast('No se pudo descartar: '+error.message);return}
+ gmailNotifications=gmailNotifications.filter(x=>x.id!==id);render();toast('Notificación descartada');
+}
 async function openReminderFromNotification(){
  const params=new URLSearchParams(location.search);
  const reminderHash=params.get('reminder');
@@ -198,6 +262,7 @@ async function startCloudSession(session){
  }
  cloudUser=nextUser;setAccountLabel('Cuenta: '+(cloudUser.email||'conectada'));
  await syncNow(false);
+ if(page==='gmail')await loadGmailNotifications();
  await openReminderFromNotification();
 }
 async function initCloud(){
@@ -214,6 +279,13 @@ const originalSave=save;
 save=function(){persistLocal();render();scheduleCloudSync()};
 saveQuiet=function(){persistLocal();scheduleCloudSync()};
 $('#account-btn')?.addEventListener('click',accountDialog);
+function applyTheme(theme){
+ const dark=theme==='dark';document.body.dataset.theme=dark?'dark':'light';
+ const b=$('#theme-toggle');if(b){b.textContent=dark?'☀':'☾';b.title=dark?'Cambiar a modo claro':'Cambiar a modo oscuro';b.setAttribute('aria-label',b.title)}
+}
+function toggleTheme(){const next=document.body.dataset.theme==='dark'?'light':'dark';localStorage.setItem('mi-espacio-theme',next);applyTheme(next)}
+applyTheme(localStorage.getItem('mi-espacio-theme')||'light');
+$('#theme-toggle')?.addEventListener('click',toggleTheme);
 initCloud();
 const gmailParams=new URLSearchParams(location.search);
 if(gmailParams.get('gmail_connected')==='1'){
